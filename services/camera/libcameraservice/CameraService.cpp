@@ -181,6 +181,21 @@ status_t CameraService::enumerateProviders() {
 
     for (auto& cameraId : deviceIds) {
         String8 id8 = String8(cameraId.c_str());
+
+    if (property_get_bool("persist.sys.camera.huawei", false)) {
+        bool cameraFound = false;
+        {
+            Mutex::Autolock lock(mCameraStatesLock);
+            auto iter = mCameraStates.find(id8);
+            if (iter != mCameraStates.end()) {
+                cameraFound = true;
+            }
+        }
+        if (!cameraFound) {
+            addStates(id8);
+       }
+    }
+
         if (getCameraState(id8) == nullptr) {
             onDeviceStatusChanged(id8, CameraDeviceStatus::PRESENT);
         }
@@ -228,7 +243,7 @@ void CameraService::onNewProviderRegistered() {
 }
 
 void CameraService::updateCameraNumAndIds() {
-    Mutex::Autolock l(mServiceLock);
+    //Mutex::Autolock l(mServiceLock);
     mNumberOfCameras = mCameraProviderManager->getCameraCount();
     mNormalDeviceIds =
             mCameraProviderManager->getAPI1CompatibleCameraDeviceIds();
@@ -253,7 +268,7 @@ void CameraService::addStates(const String8 id) {
                                                                 conflicting));
     }
 
-    if (mFlashlight->hasFlashUnit(id)) {
+    if (mFlashlight != nullptr && mFlashlight->hasFlashUnit(id)) {
         Mutex::Autolock al(mTorchStatusMutex);
         mTorchStatusMap.add(id, TorchModeStatus::AVAILABLE_OFF);
 
